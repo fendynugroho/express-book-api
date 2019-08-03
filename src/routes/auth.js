@@ -1,19 +1,32 @@
 import express from 'express';
-import User from "../models/User"; 
+import User from '../models/User';
 
-const router = express.Router(); 
+const router = express.Router();
 
-router.post("/", (req, res) => {
+router.post('/', (req, res) => {
+	const { credentials } = req.body;
 
-    const { credentials } = req.body; 
+	User.findOne({ email: credentials.email }).then(user => {
+		if (user && user.isValidPassword(credentials.password)) {
+			res.json({ success: true, user: user.toAuthJSON() });
+		} else {
+			res.status(400).json({ errors: { global: 'invalid credentials' } });
+		}
+	});
+});
 
-    User.findOne({ email: credentials.email }).then(user => {
-        if (user && user.isValidPassword(credentials.password)) {
-            res.json({success:true, user: user.toAuthJSON()});
-        } else {
-            res.status(400).json({errors: { global: "invalid credentials"}});
-        }
-    })
+router.post('/confirmation', (req, res) => {
+	const token = req.body.token;
+	User.findOneAndUpdate(
+		{ confirmationToken: token },
+		{ confirmationToken: '', confirmed: true },
+		{ new: true }
+	).then(
+		user =>
+			user
+				? res.json({ user: user.toAuthJSON() })
+				: res.status(400).json({})
+	);
 });
 
 export default router;
