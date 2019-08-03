@@ -1,6 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import uniqueValidator from 'mongoose-unique-validator';
 
 // Todo: add uniqueness and email validation to email field
 const schema = new mongoose.Schema(
@@ -9,12 +10,14 @@ const schema = new mongoose.Schema(
 			type: String,
 			required: true,
 			lowercase: true,
-			index: true
+			index: true,
+			unique: true
 		},
 		passwordHash: {
 			type: String,
 			required: true
-		}
+		},
+		confirmed: { type: Boolean, default: false }
 	},
 	{ timestamp: true }
 );
@@ -24,9 +27,12 @@ schema.methods.isValidPassword = function isValidPassword(password) {
 };
 
 schema.methods.generateJWT = function generateJWT() {
-	return jwt.sign({
-		email: this.email
-	}, process.env.SECRET_KEY);
+	return jwt.sign(
+		{
+			email: this.email
+		},
+		process.env.SECRET_KEY
+	);
 };
 
 schema.methods.toAuthJSON = function toAuthJSON() {
@@ -35,5 +41,11 @@ schema.methods.toAuthJSON = function toAuthJSON() {
 		token: this.generateJWT()
 	};
 };
+
+schema.methods.setPassword = function setPassword(password) {
+	this.passwordHash = bcrypt.hashSync(password, 10);
+};
+
+schema.plugin(uniqueValidator, { message: 'This email already registered!' });
 
 export default mongoose.model('User', schema);
